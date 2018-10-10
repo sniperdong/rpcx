@@ -603,13 +603,13 @@ func (c *xClient) Broadcast(ctx context.Context, serviceMethod string, args inte
 
 	var err error
 	l := len(clients)
-	done := make(chan bool, l)
+	done := make(chan error, l)
 	for k, client := range clients {
 		k := k
 		client := client
 		go func() {
-			err = c.wrapCall(ctx, client, serviceMethod, args, reply)
-			done <- (err == nil)
+			err := c.wrapCall(ctx, client, serviceMethod, args, reply)
+			done <- err 
 			if err != nil {
 				c.removeClient(k, client)
 			}
@@ -622,11 +622,15 @@ check:
 		select {
 		case result := <-done:
 			l--
-			if l == 0 || !result { // all returns or some one returns an error
+			if result != nil {
+				err = errors.New("server error, one of the errors:" + result.Error())
+				break check
+			}
+			if l == 0 { // all returns or some one returns an error
 				break check
 			}
 		case <-timeout:
-			break check
+			return errors.New("timeout")
 		}
 	}
 
@@ -702,7 +706,7 @@ check:
 			}
 
 		case <-timeout:
-			break check
+			return errors.New("timeout")
 		}
 	}
 
