@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"time"
-	"os"
 
 	"github.com/valyala/fastrand"
 )
@@ -76,43 +75,13 @@ type roundRobinSelector struct {
 	i       int
 }
 
-func envRandom() int {
-	var env string
-	env = getEnv()
-
-	return int(fastrand.Uint32n(uint32(HashString(env))))
-}
-
-func getEnv() string {
-	var env string
-	var err error
-	env, err = os.Hostname()
-	if err == nil {
-		return env
-	}
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return ""
-	}
-
-	for _, addr := range addrs {
-		if ipnet, ok := addr.(*net.IPNet); ok &&
-			!ipnet.IP.IsLoopback() &&
-			nil != ipnet.IP.To4() {
-			env = ipnet.IP.String()
-			break
-		}
-	}
-	return env
-}
-
 func newRoundRobinSelector(servers map[string]string) Selector {
 	var ss = make([]string, 0, len(servers))
 	for k := range servers {
 		ss = append(ss, k)
 	}
 
-	first := envRandom() % len(servers)
+	first := int(fastrand.Uint32n(uint32(len(ss))))
 	return &roundRobinSelector{servers: ss, i: first}
 }
 
